@@ -1,25 +1,16 @@
 const redisClient = require("../redisClient");
-const seats = require("../data/seats");
 
 exports.bookSeat = async (req, res) => {
 
     let { seatId, user } = req.body;
-
-    // Normalize seatId (remove spaces, uppercase)
     seatId = seatId.trim().toUpperCase();
 
     const lockKey = `lock:${seatId}`;
+    const seatKey = `seat:${seatId}`;
+    const bookingKey = `booking:${seatId}`;
 
     try {
 
-        // Check if seat exists
-        if (!(seatId in seats)) {
-            return res.status(400).json({
-                message: "Invalid seat ID"
-            });
-        }
-
-        // Try to acquire Redis lock
         const lock = await redisClient.set(lockKey, user, {
             NX: true,
             EX: 10
@@ -31,8 +22,9 @@ exports.bookSeat = async (req, res) => {
             });
         }
 
-        // Check if seat already booked
-        if (seats[seatId] === true) {
+        const seatStatus = await redisClient.get(seatKey);
+
+        if (seatStatus === "booked") {
 
             await redisClient.del(lockKey);
 
@@ -41,23 +33,28 @@ exports.bookSeat = async (req, res) => {
             });
         }
 
-        // Simulate booking processing delay
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Mark seat as booked
-        seats[seatId] = true;
-
-        // Generate booking ID
         const bookingId = "BOOK-" + Date.now();
 
-        // Release Redis lock
+        await redisClient.set(seatKey, "booked");
+
+        await redisClient.set(
+            bookingKey,
+            JSON.stringify({
+                bookingId,
+                seat: seatId,
+                user
+            })
+        );
+
         await redisClient.del(lockKey);
 
         res.json({
             success: true,
-            bookingId: bookingId,
+            bookingId,
             seat: seatId,
-            user: user
+            user
         });
 
     } catch (error) {
