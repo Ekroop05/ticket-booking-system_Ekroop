@@ -65,3 +65,32 @@ exports.bookSeat = async (req, res) => {
 
     }
 };
+
+
+// NEW FUNCTION → GET SEAT STATUS
+
+exports.getSeats = async (req, res) => {
+
+    try {
+
+        const seats = {};
+        const seatIds = ["A1", "A2", "A3", "A4", "A5"];
+
+        for (const seat of seatIds) {
+
+            const status = await redisClient.get(`seat:${seat}`);
+
+            seats[seat] = status === "booked" ? "booked" : "available";
+        }
+
+        res.json(seats);
+
+    } catch (error) {
+
+        res.status(500).json({
+            error: error.message
+        });
+
+    }
+
+};
