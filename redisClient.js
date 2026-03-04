@@ -1,7 +1,10 @@
 const redis = require("redis");
 
 const client = redis.createClient({
-  url: process.env.REDIS_URL || "https://divine-turkey-3833.upstash.io"
+  url: process.env.REDIS_URL,
+  socket: {
+    tls: true
+  }
 });
 
 client.on("error", (err) => {
